@@ -7,7 +7,7 @@ can be used in a DTO environment, to create an ApiObject for use in a Database o
 
 The Convert process takes a Configuration of the format `field: {{new field}}` or `field: {{object}}`.
 
-The object format is has the following fields:
+The object format has the following fields:
 
   - **field**: The new field to name the result
   - **method**: The method to use to process the field
@@ -43,13 +43,13 @@ public class MyCustomMethod {
                 bTest = true;
             }
 
-            to.setBoolean(fieldFrom, bTest);
+            to.setBoolean(processObj.getString("field"), bTest);
         }
     }
 
     private void convertFieldFromBoolean(ApiObject from, ApiObject to, String fieldFrom, ApiObject processObj) throws ApiException {
         if (from.containsKey(fieldFrom)) {
-            to.setInteger(fieldFrom, Integer.valueOf(from.isSet(fieldFrom) ? 1 : 0));
+            to.setInteger(processObj.getString("field"), from.isSet(fieldFrom) ? 1 : 0);
         }
     }
 }
@@ -77,14 +77,13 @@ public class ContactService {
     ApiObjectConverter apiConvert;
 
     public void configure() {
+        apiConvert = ApiObjectConverter.getInstance();
+        
         // Retrieve CONVERT OBJECT from ConfigProvider
-
         contactToDb = ConfigProvider.getInstance().getConfig().getObject("CONVERT_CONTACT");
 
         // Reverse Object coming from database
-        dbToConact = ApiObjectConverter.getInstance().reverseConvertObject(contactToDb);        
-
-        apiConvert = ApiObjectConverter.getInstance();
+        dbToConact = apiConvert.reverseConvertObject(contactToDb);
     }
 
     public ApiObject saveContact(ApiObject contact) {

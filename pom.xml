@@ -5,7 +5,7 @@
 
     <groupId>com.progbits.api.conversion</groupId>
     <artifactId>ApiConversion_jre21</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
 
     <url>http://maven.apache.org</url>

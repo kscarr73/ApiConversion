@@ -282,6 +282,10 @@ public class ApiObjectConverter implements ApiService {
                 
                 var toMethod = convert.getString(FIELD_DOT_METHOD);
                 
+                if (convert.isSet("default") && subject.getType(intFld) == ApiObject.TYPE_NULL) {
+                    subject.put(intFld, convert.get("default"));
+                }
+                
                 if (convert.isSet("required") && subject.isNull(intFld)) {
                     throw new ApiException(415, intFld + " IS Required");
                 }

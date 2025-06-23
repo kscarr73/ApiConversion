@@ -54,6 +54,8 @@ public class ApiObjectConverter implements ApiService {
     public static final String FIELD_METHOD = "method";
     public static final String FIELD_DOT_FIELD = ".field";
     public static final String FIELD_DOT_METHOD = ".method";
+    public static final String FIELD_TYPE = "type";
+    public static final String FIELD_REQUIRED = "required";
     
     private static final String CONTROL_REQUIRED = "$required";
     private static final String FIELD_ROOT = "root";
@@ -223,8 +225,142 @@ public class ApiObjectConverter implements ApiService {
 
         return respObj;
     }
+    
+    /**
+     * Convert ApiObject with root list or Single using a Conversion Object
+     *
+     * <p>NOTE: Iterates over convertObj instead of subject</p>
+     * 
+     * @param subject The subject to perform the conversion on
+     * @param convertObj Field Mapping used for Conversion
+     * @param includeAll true/false Return ALL fields from subject
+     * 
+     * @return The Converted Object
+     *
+     * @throws ApiException
+     */
+    public ApiObject convertObjectV2(ApiObject subject, ApiObject convertObj, boolean includeAll) throws ApiException {
+        if (subject.containsKey(FIELD_ROOT)) {
+            ApiObject respObj = new ApiObject();
+            
+            respObj.createList(FIELD_ROOT);
+            
+            for (var entry : subject.getList(FIELD_ROOT)) {
+                respObj.getList(FIELD_ROOT).add(convertSingleV2(entry, convertObj, includeAll));
+            }
+            
+            return respObj;
+        } else {
+            return convertSingleV2(subject, convertObj, includeAll);
+        }
+    }
+    
+    /**
+     * Convert a single ApiObject using a Conversion Object
+     *
+     * @param subject The subject to perform the conversion on
+     * @param convertObj Field Mapping used for Conversion
+     * @param includeAll true/false Return ALL fields from subject
+     * 
+     * @return The Converted Object
+     *
+     * @throws ApiException
+     */
+    private ApiObject convertSingleV2(ApiObject subject, ApiObject convertObj, boolean includeAll) throws ApiException {
+        ApiObject respObj = new ApiObject();
+        
+        for (String convertFld : convertObj.keySet()) {
+            if (convertObj.getType(convertFld) == ApiObject.TYPE_STRING) {
+                processField(respObj, convertObj.getString(convertFld), subject.get(convertFld));
+            } else if (convertObj.getType(convertFld) == ApiObject.TYPE_OBJECT) {
+                ApiObject convert = convertObj.getObject(convertFld);
+                String intFld = convertFld; // Internal Field for use if # is present
+                
+                if (intFld.contains("#")) {
+                    intFld = intFld.substring(0, intFld.indexOf("#"));
+                }
+                
+                var toMethod = convert.getString(FIELD_DOT_METHOD);
+                
+                if (convert.isSet("required") && subject.isNull(intFld)) {
+                    throw new ApiException(415, intFld + " IS Required");
+                }
+                
+                if (convert.isSet(FIELD_TYPE) && !validateFieldType(intFld, convert.getString(FIELD_TYPE), subject)) {
+                    throw new ApiException(415, intFld + " Expected Type " + convert.getString(FIELD_TYPE) );
+                }
 
-    public void processField(ApiObject to, String fieldName, Object value) {
+                if (toMethod != null) {
+                    if (methods.containsKey(toMethod)) {
+                        methods.get(toMethod).process(subject, respObj, intFld, convert);
+                    } else {
+                        throw new ApiException(415, String.format("Method <%s> for Field <%s> Does Not Exist", toMethod, intFld));
+                    }
+                } else {
+                    if (convert.getString(FIELD_FIELD).contains(".")) {
+                        String[] fldSplit = convert.getString(FIELD_FIELD).split("\\.");
+                        
+                        ApiObject objSub = respObj.getObject(fldSplit[0]);
+                        
+                        if (objSub == null) {
+                            objSub = respObj.createObject(fldSplit[0]);
+                        }
+                        
+                        objSub.put(fldSplit[1], subject.get(intFld));
+                    } else {
+                        respObj.put(convert.getString(FIELD_FIELD), subject.get(intFld));
+                    }
+                }
+            } else if (includeAll) {
+                if ("orderBy".equals(convertFld)) {
+                    respObj.createStringArray(convertFld);
+                    
+                    for (var orderEntry : subject.getStringArray("orderBy")) {
+                        boolean minusExists = false;
+                        String lclOrderEntry = orderEntry;
+                        String replaceEntry;
+                        
+                        if (orderEntry.startsWith("-")) {
+                            lclOrderEntry = orderEntry.substring(1);   
+                            minusExists = true;
+                        }
+                        
+                        if (convertObj.getType(lclOrderEntry) == ApiObject.TYPE_OBJECT) {
+                            replaceEntry = convertObj.getString(lclOrderEntry + FIELD_DOT_FIELD);
+                        } else {
+                            replaceEntry = convertObj.getString(lclOrderEntry);
+                        }
+                        
+                        if (minusExists) {
+                            replaceEntry = "-" + replaceEntry;
+                        }
+                        
+                        respObj.getStringArray(convertFld).add(replaceEntry);
+                    }
+                } else {
+                    respObj.put(convertFld, subject.get(convertFld));
+                }
+            }
+        }
+
+        return respObj;
+    }
+
+    private boolean validateFieldType(String fld, String typeString, ApiObject subject) {
+        return switch (typeString) {
+            case "string" -> subject.getType(fld) == ApiObject.TYPE_STRING;
+            case "integer" -> subject.getType(fld) == ApiObject.TYPE_INTEGER;
+            case "long" -> subject.getType(fld) == ApiObject.TYPE_LONG;
+            case "object" -> subject.getType(fld) == ApiObject.TYPE_OBJECT;
+            case "boolean" -> subject.getType(fld) == ApiObject.TYPE_BOOLEAN;
+            case "arraylist" -> subject.getType(fld) == ApiObject.TYPE_ARRAYLIST;
+            case "stringarray" -> subject.getType(fld) == ApiObject.TYPE_STRINGARRAY;
+                
+            default -> false;
+        };
+    }
+    
+    private void processField(ApiObject to, String fieldName, Object value) {
         if (fieldName.contains(".")) {
             String[] sName = fieldName.split("\\.");
             

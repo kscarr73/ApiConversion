@@ -301,7 +301,7 @@ public class ApiObjectConverter implements ApiService {
                     intFld = intFld.substring(0, intFld.indexOf("#"));
                 }
 
-                var toMethod = convert.getString(FIELD_DOT_METHOD);
+                var toMethod = convert.getString(FIELD_METHOD);
 
                 if (convert.isSet("default") && subject.getType(intFld) == ApiObject.TYPE_NULL) {
                     subject.put(intFld, convert.get("default"));

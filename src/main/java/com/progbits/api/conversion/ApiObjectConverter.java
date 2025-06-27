@@ -192,7 +192,7 @@ public class ApiObjectConverter implements ApiService {
 
         for (String subjectFld : subject.keySet()) {
             if (convertObj.getType(subjectFld) == ApiObject.TYPE_STRING) {
-                processField(respObj, convertObj.getString(subjectFld), subject.get(subjectFld));
+                setField(respObj, convertObj.getString(subjectFld), subject.get(subjectFld));
             } else if (convertObj.getType(subjectFld) == ApiObject.TYPE_OBJECT) {
                 var toMethod = convertObj.getString(subjectFld + FIELD_DOT_METHOD);
 
@@ -292,7 +292,7 @@ public class ApiObjectConverter implements ApiService {
 
         for (String convertFld : convertObj.keySet()) {
             if (convertObj.getType(convertFld) == ApiObject.TYPE_STRING) {
-                processField(respObj, convertObj.getString(convertFld), subject.get(convertFld));
+                setField(respObj, convertObj.getString(convertFld), subject.get(convertFld));
             } else if (convertObj.getType(convertFld) == ApiObject.TYPE_OBJECT) {
                 ApiObject convert = convertObj.getObject(convertFld);
                 String intFld = convertFld; // Internal Field for use if # is present
@@ -393,7 +393,14 @@ public class ApiObjectConverter implements ApiService {
         };
     }
 
-    private void processField(ApiObject to, String fieldName, Object value) {
+    /**
+     * Process object notation or set field
+     * 
+     * @param to Object to write to
+     * @param fieldName Process dot notation for objects, or standard fields
+     * @param value the value to sets
+     */
+    public void setField(ApiObject to, String fieldName, Object value) {
         if (fieldName.contains(".")) {
             String[] sName = fieldName.split("\\.");
 
@@ -436,7 +443,7 @@ public class ApiObjectConverter implements ApiService {
     private void json2String(ApiObject from, ApiObject to, String fieldFrom, ApiObject processObj) throws ApiException {
         if (from.getType(fieldFrom) != ApiObject.TYPE_NULL) {
             if (from.getType(fieldFrom) == ApiObject.TYPE_OBJECT) {
-                processField(to, processObj.getString(FIELD_FIELD), parseObjectToJson(from.getObject(fieldFrom)));
+                setField(to, processObj.getString(FIELD_FIELD), parseObjectToJson(from.getObject(fieldFrom)));
             } else {
                 throw new ApiException(410, String.format("Field<%s>: MUST be an Object", fieldFrom));
             }
@@ -455,7 +462,7 @@ public class ApiObjectConverter implements ApiService {
     private void string2Json(ApiObject from, ApiObject to, String fieldFrom, ApiObject processObj) throws ApiException {
         if (from.getType(fieldFrom) != ApiObject.TYPE_NULL) {
             if (from.getType(fieldFrom) == ApiObject.TYPE_STRING) {
-                processField(to, processObj.getString(FIELD_FIELD), parseJsonToObject(from.getString(fieldFrom)));
+                setField(to, processObj.getString(FIELD_FIELD), parseJsonToObject(from.getString(fieldFrom)));
             } else {
                 throw new ApiException(410, String.format("Field<%s>: MUST be a String", fieldFrom));
             }
@@ -471,14 +478,14 @@ public class ApiObjectConverter implements ApiService {
                     bTest = true;
                 }
 
-                processField(to, processObj.getString(FIELD_FIELD), bTest);
+                setField(to, processObj.getString(FIELD_FIELD), bTest);
             }
 
             case ApiObject.TYPE_STRING -> {
                 if ("true".equals(from.getString(fieldFrom))) {
-                    processField(to, processObj.getString(FIELD_FIELD), true);
+                    setField(to, processObj.getString(FIELD_FIELD), true);
                 } else {
-                    processField(to, processObj.getString(FIELD_FIELD), false);
+                    setField(to, processObj.getString(FIELD_FIELD), false);
                 }
             }
 
@@ -489,7 +496,7 @@ public class ApiObjectConverter implements ApiService {
 
     private void convertFieldFromBoolean(ApiObject from, ApiObject to, String fieldFrom, ApiObject processObj) throws ApiException {
         if (from.containsKey(fieldFrom) && from.getType(fieldFrom) == ApiObject.TYPE_BOOLEAN) {
-            processField(to, processObj.getString(FIELD_FIELD), from.isSet(fieldFrom) ? 1 : 0);
+            setField(to, processObj.getString(FIELD_FIELD), from.isSet(fieldFrom) ? 1 : 0);
         }
     }
 
@@ -505,7 +512,7 @@ public class ApiObjectConverter implements ApiService {
             try {
                 OffsetDateTime dteFrom = OffsetDateTime.parse(strFrom);
 
-                processField(to, processObj.getString(FIELD_FIELD), dteFrom);
+                setField(to, processObj.getString(FIELD_FIELD), dteFrom);
             } catch (DateTimeParseException dtp) {
                 throw new ApiException(410, "Field (" + fieldFrom + ") Cannot Be Parsed to DateTime. Expected Format: yyyy-MM-ddTHH:mm:ss.SSSX");
             }
@@ -514,7 +521,7 @@ public class ApiObjectConverter implements ApiService {
 
     private void convertDateToString(ApiObject from, ApiObject to, String fieldFrom, ApiObject processObj) throws ApiException {
         if (from.getType(fieldFrom) == ApiObject.TYPE_DATETIME) {
-            processField(to, processObj.getString(FIELD_FIELD), from.getDateTime(fieldFrom).format(DateTimeFormatter.ISO_DATE_TIME));
+            setField(to, processObj.getString(FIELD_FIELD), from.getDateTime(fieldFrom).format(DateTimeFormatter.ISO_DATE_TIME));
         }
     }
 }
